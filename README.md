@@ -12,3 +12,7 @@ open http://0.0.0.0:5000/
 ## Environment variables
 
 Be sure to set `GH_ADDALICENSE_CLIENT_ID` and `GH_ADDALICENSE_SECRET_ID`.
+
+## Testing
+
+    $ ruby test/*

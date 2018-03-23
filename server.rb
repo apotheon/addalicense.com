@@ -7,6 +7,8 @@ require 'pp'
 require 'base64'
 require 'typhoeus'
 
+require_relative 'helpers.rb'
+
 class AddALicense < Sinatra::Base
   set :root, File.dirname(__FILE__)
   enable :sessions
@@ -135,44 +137,5 @@ class AddALicense < Sinatra::Base
     redirect '/'
   end
 
-  helpers do
-    def title(number = nil)
-      title = 'Add a License'
-    end
-
-    # doing it in parallel is way more performant
-    # rescue block is needed in case a repo is completely empty
-    def repositories_missing_licenses
-      public_repos = []
-      Octokit.auto_paginate = true
-      hydra = Typhoeus::Hydra.hydra
-      orgs = api_client.organizations.collect { |h| h[:login] }
-      repos = api_client.repositories
-      orgs.each { |org| repos.concat(api_client.organization_repositories(org)) }
-      repos.each do |repo|
-        request = Typhoeus::Request.new("https://api.github.com/repos/#{repo.full_name}", headers: { Authorization: "token #{api_client.access_token}", Accept:  'application/vnd.github.drax-preview+json' })
-        request.on_complete do |response|
-          if response.success?
-            body = JSON.load(response.response_body)
-            public_repos << repo if body['license'].nil?
-          elsif response.timed_out?
-            puts "#{repo.full_name} got a time out"
-          elsif response.code == 0
-            # Could not get an http response, something's wrong.
-            puts "#{repo.full_name} " + response.curl_error_message
-          elsif response.code == 404
-            # don't worry about it; the repo is probably empty
-            public_repos << repo
-            puts "404, but that's ok."
-          else
-            # Received a non-successful http response.
-            puts "#{repo.full_name} HTTP request failed: " + response.code.to_s
-          end
-        end
-        hydra.queue(request)
-      end
-      hydra.run
-      public_repos.sort_by { |r| r['full_name'] }
-    end
-  end
+  helpers { include Helper }
 end
